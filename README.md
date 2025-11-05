@@ -18,7 +18,7 @@ Features
   
   - [x] Optuna Hyperparameter Optimization
 
-2. Quick Start
+Quick Start
 Clone the repo:
 
 git clone https://github.com/sgewv/DRL_PBL.git
