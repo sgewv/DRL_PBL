@@ -29,7 +29,7 @@ def run_training(args, results_dir=None):
     )
 
     episode_durations = []
-    episode_rewards = [] # Track episode rewards
+    episode_rewards = [] 
     n_step_buffer = deque(maxlen=args.n_steps)
 
     if not args.quiet:
@@ -78,8 +78,9 @@ def run_training(args, results_dir=None):
 
                 episode_durations.append(time_step + 1)
                 episode_rewards.append(current_episode_reward) # Append total reward for the episode
-                if not args.quiet and (episode_index + 1) % 10 == 0:
-                    print(f"Episode {episode_index+1}: duration {time_step+1}")
+                if (episode_index + 1) % 10 == 0:
+                    if not args.quiet:
+                        print(f"Episode {episode_index+1}: duration {time_step+1}")
                     if results_dir:
                         plot_training_progress(episode_durations, episode_rewards, results_dir, episode_index + 1, args.quiet)
                 
@@ -223,7 +224,10 @@ def main(args):
     plt.legend()
     
     plt.tight_layout() # Adjust layout to prevent overlapping titles/labels
-    plt.savefig(os.path.join(results_dir, 'training_result.png'))
+    # Generate a timestamp for the filename
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"training_result_{timestamp}.png"
+    plt.savefig(os.path.join(results_dir, filename))
     if not args.quiet:
         plt.show()
 

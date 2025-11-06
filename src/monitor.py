@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg') # Set backend before importing pyplot
 import matplotlib.pyplot as plt
 import torch
 import os
@@ -32,7 +34,8 @@ def plot_training_progress(episode_durations, episode_rewards, results_dir, epis
     plt.legend()
     
     plt.tight_layout() # Adjust layout to prevent overlapping titles/labels
-    plt.savefig(os.path.join(results_dir, 'training_progress.png'))
+    print(f"Attempting to save plot to: {os.path.join(results_dir, f'training_progress_episode_{episode_index}.png')}")
+    plt.savefig(os.path.join(results_dir, f'training_progress_episode_{episode_index}.png'))
     if not quiet:
         plt.show()
     plt.close() # Close the plot to free memory

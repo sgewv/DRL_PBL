@@ -164,7 +164,7 @@ class DQNAgent:
                     self.memory.update(idxs[i], errors[i])
                 loss = (kl_divergence * torch.FloatTensor(is_weights).to(self.device)).mean()
             else:
-                loss = kl_div.mean()
+                loss = kl_divergence.mean()
 
         else:
             print("[Mode] Standard DQN")
