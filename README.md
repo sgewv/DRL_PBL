@@ -57,4 +57,5 @@ Schaul, T., Quan, J., Antonoglou, I., & Silver, D. (2015). Prioritized experienc
 
 Hessel, M., Modayil, J., Van Hasselt, H., Schaul, T., Ostrovski, G., Dabney, W., ... & Silver, D. (2018, April). Rainbow: Combining improvements in deep reinforcement learning. In Proceedings of the AAAI conference on artificial intelligence (Vol. 32, No. 1).
 
-
+# Contact
+iudr42@gmail.com
