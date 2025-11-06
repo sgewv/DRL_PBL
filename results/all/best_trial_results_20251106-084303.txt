@@ -1,0 +1,11 @@
+Random Seed: None
+Best trial for mode 'all':
+  Value (Score): 10.45
+  Params: 
+    lr: 2.1634348312186565e-05
+    n_steps: 4
+    use_double: False
+    use_dueling: False
+    use_per: True
+    use_noisy: False
+    use_distributional: False
