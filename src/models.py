@@ -48,73 +48,50 @@ class NoisyLinear(nn.Module):
 class QNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, use_noisy=False, use_distributional=False, num_atoms=51, v_min=-10, v_max=10):
         super(QNetwork, self).__init__()
-        self.use_noisy = use_noisy
         self.use_distributional = use_distributional
         self.action_dim = action_dim
         self.num_atoms = num_atoms
-        self.v_min = v_min
-        self.v_max = v_max
 
-        LinearLayer = NoisyLinear if use_noisy else nn.Linear
-
-        self.layer1 = LinearLayer(state_dim, 128)
-        self.layer2 = LinearLayer(128, 128)
-        
-        if use_distributional:
-            self.layer3 = LinearLayer(128, action_dim * num_atoms)
-            self.register_buffer('support', torch.linspace(v_min, v_max, num_atoms))
+        if use_noisy:
+            self.layer1 = NoisyLinear(state_dim, 128)
+            self.layer2 = NoisyLinear(128, 128)
+            self.layer3 = NoisyLinear(128, action_dim * num_atoms if use_distributional else action_dim)
         else:
-            self.layer3 = LinearLayer(128, action_dim)
+            self.layer1 = nn.Linear(state_dim, 128)
+            self.layer2 = nn.Linear(128, 128)
+            self.layer3 = nn.Linear(128, action_dim * num_atoms if use_distributional else action_dim)
 
     def forward(self, input_tensor):
-        input_tensor = F.relu(self.layer1(input_tensor))
-        input_tensor = F.relu(self.layer2(input_tensor))
-        input_tensor = self.layer3(input_tensor)
+        x = F.relu(self.layer1(input_tensor))
+        x = F.relu(self.layer2(x))
+        x = self.layer3(x)
 
         if self.use_distributional:
-            input_tensor = input_tensor.view(-1, self.action_dim, self.num_atoms)
-            input_tensor = F.log_softmax(input_tensor, dim=2)
+            x = x.view(-1, self.action_dim, self.num_atoms)
+            x = F.log_softmax(x, dim=2)
         
-        print(f"[QNetwork] Output shape: {input_tensor.shape}")
-        return input_tensor
+        return x
 
     def reset_noise(self):
-        if self.use_noisy:
-            for name, module in self.named_children():
-                if isinstance(module, NoisyLinear):
-                    module.reset_noise()
+        for name, module in self.named_children():
+            if isinstance(module, NoisyLinear):
+                module.reset_noise()
 
 class DuelingQNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, use_noisy=False, use_distributional=False, num_atoms=51, v_min=-10, v_max=10):
         super(DuelingQNetwork, self).__init__()
-        self.use_noisy = use_noisy
         self.use_distributional = use_distributional
         self.action_dim = action_dim
         self.num_atoms = num_atoms
-        self.v_min = v_min
-        self.v_max = v_max
 
-        LinearLayer = NoisyLinear if use_noisy else nn.Linear
-
-        self.feature_layer = nn.Sequential(
-            LinearLayer(state_dim, 128),
-            nn.ReLU()
-        )
-
-        self.value_stream = nn.Sequential(
-            LinearLayer(128, 128),
-            nn.ReLU(),
-            LinearLayer(128, num_atoms if use_distributional else 1)
-        )
-
-        self.advantage_stream = nn.Sequential(
-            LinearLayer(128, 128),
-            nn.ReLU(),
-            LinearLayer(128, action_dim * num_atoms if use_distributional else action_dim)
-        )
-
-        if use_distributional:
-            self.register_buffer('support', torch.linspace(v_min, v_max, num_atoms))
+        if use_noisy:
+            self.feature_layer = nn.Sequential(NoisyLinear(state_dim, 128), nn.ReLU())
+            self.value_stream = nn.Sequential(NoisyLinear(128, 128), nn.ReLU(), NoisyLinear(128, num_atoms if use_distributional else 1))
+            self.advantage_stream = nn.Sequential(NoisyLinear(128, 128), nn.ReLU(), NoisyLinear(128, action_dim * num_atoms if use_distributional else action_dim))
+        else:
+            self.feature_layer = nn.Sequential(nn.Linear(state_dim, 128), nn.ReLU())
+            self.value_stream = nn.Sequential(nn.Linear(128, 128), nn.ReLU(), nn.Linear(128, num_atoms if use_distributional else 1))
+            self.advantage_stream = nn.Sequential(nn.Linear(128, 128), nn.ReLU(), nn.Linear(128, action_dim * num_atoms if use_distributional else action_dim))
 
     def forward(self, input_tensor):
         features = self.feature_layer(input_tensor)
@@ -129,17 +106,47 @@ class DuelingQNetwork(nn.Module):
         else:
             output_tensor = value + (advantage - advantage.mean(dim=1, keepdim=True))
         
-        print(f"[DuelingQNetwork] Output shape: {output_tensor.shape}")
         return output_tensor
 
     def reset_noise(self):
-        if self.use_noisy:
-            for name, module in self.named_children():
-                if hasattr(module, 'reset_noise'):
-                    module.reset_noise()
-                elif isinstance(module, NoisyLinear):
-                    module.reset_noise()
-            for seq_name, sequential in [('feature_layer', self.feature_layer), ('value_stream', self.value_stream), ('advantage_stream', self.advantage_stream)]:
-                for name, module in sequential.named_children():
-                    if isinstance(module, NoisyLinear):
-                        module.reset_noise()
+        for seq in [self.feature_layer, self.value_stream, self.advantage_stream]:
+            for layer in seq:
+                if isinstance(layer, NoisyLinear):
+                    layer.reset_noise()
+
+class DQN_CNN(nn.Module):
+    def __init__(self, n_actions, use_noisy=False, use_distributional=False, num_atoms=51):
+        super(DQN_CNN, self).__init__()
+        self.use_distributional = use_distributional
+        self.n_actions = n_actions
+        self.num_atoms = num_atoms
+
+        self.conv1 = nn.Conv2d(4, 32, kernel_size=8, stride=4)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        
+        if use_noisy:
+            self.fc1 = NoisyLinear(64 * 7 * 7, 512)
+            self.fc2 = NoisyLinear(512, n_actions * num_atoms if use_distributional else n_actions)
+        else:
+            self.fc1 = nn.Linear(64 * 7 * 7, 512)
+            self.fc2 = nn.Linear(512, n_actions * num_atoms if use_distributional else n_actions)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = x.view(x.size(0), -1)  # Flatten
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+
+        if self.use_distributional:
+            x = x.view(-1, self.n_actions, self.num_atoms)
+            x = F.log_softmax(x, dim=2)
+            
+        return x
+
+    def reset_noise(self):
+        for name, module in self.named_children():
+            if isinstance(module, NoisyLinear):
+                module.reset_noise()

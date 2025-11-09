@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.dist-info/
+*.egg-info/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Dependencies
+/node_modules
+/build
+/dist
+
+# Logs and results
+*.log
+results/
+wandb/
+
+# Zip files
+*.zip
+
+# Shell scripts
+*.sh
+
+# Data files (if not meant to be version controlled)
+ml-latest/

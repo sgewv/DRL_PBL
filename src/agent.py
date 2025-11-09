@@ -5,13 +5,14 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
-from .models import QNetwork, DuelingQNetwork
+from .models import QNetwork, DuelingQNetwork, DQN_CNN
 from .replay_buffer import ReplayBuffer, PrioritizedReplayBuffer, Transition
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, use_dueling=False, use_double=False, use_per=False, use_noisy=False, use_distributional=False, num_atoms=51, v_min=-10, v_max=10, learning_rate=1e-4):
+    def __init__(self, state_dim, action_dim, is_atari=False, use_dueling=False, use_double=False, use_per=False, use_noisy=False, use_distributional=False, num_atoms=51, v_min=-10, v_max=10, learning_rate=1e-4):
         self.state_dim = state_dim
         self.action_dim = action_dim
+        self.is_atari = is_atari
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.use_dueling = use_dueling
@@ -23,19 +24,26 @@ class DQNAgent:
         self.v_min = v_min
         self.v_max = v_max
 
-        QNetworkModel = DuelingQNetwork if use_dueling else QNetwork
-        self.policy_net = QNetworkModel(state_dim, action_dim, use_noisy=use_noisy, use_distributional=use_distributional, num_atoms=num_atoms, v_min=v_min, v_max=v_max).to(self.device)
-        self.target_net = QNetworkModel(state_dim, action_dim, use_noisy=use_noisy, use_distributional=use_distributional, num_atoms=num_atoms, v_min=v_min, v_max=v_max).to(self.device)
+        if is_atari:
+            # For Atari, Dueling is often handled differently or not used in simple CNNs
+            QNetworkModel = DQN_CNN
+            self.policy_net = QNetworkModel(action_dim, use_noisy=use_noisy, use_distributional=use_distributional, num_atoms=num_atoms).to(self.device)
+            self.target_net = QNetworkModel(action_dim, use_noisy=use_noisy, use_distributional=use_distributional, num_atoms=num_atoms).to(self.device)
+        else:
+            QNetworkModel = DuelingQNetwork if use_dueling else QNetwork
+            self.policy_net = QNetworkModel(state_dim, action_dim, use_noisy=use_noisy, use_distributional=use_distributional, num_atoms=num_atoms, v_min=v_min, v_max=v_max).to(self.device)
+            self.target_net = QNetworkModel(state_dim, action_dim, use_noisy=use_noisy, use_distributional=use_distributional, num_atoms=num_atoms, v_min=v_min, v_max=v_max).to(self.device)
         
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
         self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=learning_rate, amsgrad=True)
         
+        buffer_capacity = 100000 if is_atari else 10000
         if use_per:
-            self.memory = PrioritizedReplayBuffer(10000)
+            self.memory = PrioritizedReplayBuffer(buffer_capacity)
         else:
-            self.memory = ReplayBuffer(10000)
+            self.memory = ReplayBuffer(buffer_capacity)
 
         self.steps_done = 0
 
@@ -43,49 +51,55 @@ class DQNAgent:
             self.support = torch.linspace(v_min, v_max, num_atoms).to(self.device)
             self.delta_z = (v_max - v_min) / (num_atoms - 1)
 
-    def select_action(self, state, eps_start=0.9, eps_end=0.05, eps_decay=1000):
+    def _get_greedy_action(self, state):
+        """Selects an action greedily from the policy network."""
+        with torch.no_grad():
+            # Normalize state if it's an Atari frame
+            processed_state = state / 255.0 if self.is_atari else state
+            if self.use_distributional:
+                q_dist = self.policy_net(processed_state).exp()
+                q_values = (q_dist * self.support).sum(2)
+                return q_values.max(1)[1].view(1, 1)
+            else:
+                return self.policy_net(processed_state).max(1)[1].view(1, 1)
+
+    def select_action(self, state, eps_start, eps_end, eps_decay, evaluation_mode=False):
+        if evaluation_mode:
+            return self._get_greedy_action(state)
+
         if self.use_noisy:
-            with torch.no_grad():
-                if self.use_distributional:
-                    q_dist = self.policy_net(state).exp()
-                    q_values = (q_dist * self.support).sum(2)
-                    return q_values.max(1)[1].view(1, 1)
-                else:
-                    return self.policy_net(state).max(1)[1].view(1, 1)
+            return self._get_greedy_action(state)
 
         sample = random.random()
-        eps_threshold = eps_end + (eps_start - eps_end) * \
+        self.eps_threshold = eps_end + (eps_start - eps_end) * \
             math.exp(-1. * self.steps_done / eps_decay)
         self.steps_done += 1
-        if sample > eps_threshold:
-            with torch.no_grad():
-                if self.use_distributional:
-                    q_dist = self.policy_net(state).exp()
-                    q_values = (q_dist * self.support).sum(2)
-                    return q_values.max(1)[1].view(1, 1)
-                else:
-                    return self.policy_net(state).max(1)[1].view(1, 1)
+        if sample > self.eps_threshold:
+            return self._get_greedy_action(state)
         else:
             return torch.tensor([[random.randrange(self.action_dim)]], device=self.device, dtype=torch.long)
 
-    def add_to_memory(self, state, action, reward, next_state, done, gamma=0.99, n_steps=1):
+    def add_to_memory(self, state, action, reward, next_state, done):
         if self.use_per:
             self.memory.add(1.0, state, action, reward, next_state, done) # Give max priority
         else:
             self.memory.push(state, action, reward, next_state, done)
 
-    def optimize_model(self, batch_size=128, gamma=0.99, n_steps=1):
+    def optimize_model(self, batch_size, gamma, n_steps):
         if len(self.memory) < batch_size:
-            return
+            return None # Return None if not optimizing
         
-        print("\n--- Optimizing Model ---")
+        # For Atari, a smaller batch size is common
+        if self.is_atari:
+            batch_size = 32
+        
+        if len(self.memory) < batch_size:
+            return None
 
         if self.use_per:
             transitions, idxs, is_weights = self.memory.sample(batch_size)
-            print(f"[Sample] PER sample indices shape: {np.array(idxs).shape}")
         else:
             transitions = self.memory.sample(batch_size)
-            print(f"[Sample] Uniform sample size: {len(transitions)}")
         
         batch = Transition(*zip(*transitions))
 
@@ -95,12 +109,15 @@ class DQNAgent:
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
-        print(f"[Batch] State shape: {state_batch.shape}, Action shape: {action_batch.shape}, Reward shape: {reward_batch.shape}")
+
+        # Normalize pixel values for Atari
+        if self.is_atari:
+            state_batch = state_batch / 255.0
+            non_final_next_states = non_final_next_states / 255.0
 
         if self.use_distributional:
-            print("[Mode] Distributional DQN")
+            # (Distributional logic remains largely the same, but the reward_batch is now an n-step return)
             log_q_distribution = self.policy_net(state_batch)[range(batch_size), action_batch.squeeze(1)]
-            print(f"[C51] Policy net log_q_distribution shape: {log_q_distribution.shape}")
 
             with torch.no_grad():
                 target_q_distribution = torch.zeros(batch_size, self.num_atoms, device=self.device)
@@ -117,11 +134,10 @@ class DQNAgent:
                         next_actions = next_q.argmax(1)
                     
                     next_dist = next_dist[range(len(non_final_next_states)), next_actions]
-                    print(f"[C51] Optimal next_dist shape: {next_dist.shape}")
 
+                    # N-step gamma discount applied here
                     projected_support = reward_batch[non_final_mask].unsqueeze(1) + (gamma**n_steps) * self.support.unsqueeze(0)
                     projected_support = projected_support.clamp(self.v_min, self.v_max)
-                    print(f"[C51] Projected support projected_support shape: {projected_support.shape}")
 
                     projected_index = (projected_support - self.v_min) / self.delta_z
                     lower_index = projected_index.floor().long()
@@ -134,7 +150,6 @@ class DQNAgent:
                     proj_dist.scatter_add_(1, lower_index, l_weight)
                     proj_dist.scatter_add_(1, upper_index, u_weight)
                     target_q_distribution[non_final_mask] = proj_dist
-                    print(f"[C51] Projected non-final target_dist shape: {proj_dist.shape}")
 
                 final_mask = ~non_final_mask
                 if final_mask.any():
@@ -153,10 +168,8 @@ class DQNAgent:
                     proj_dist_final.scatter_add_(1, lower_index.unsqueeze(1), l_weight.unsqueeze(1))
                     proj_dist_final.scatter_add_(1, upper_index.unsqueeze(1), u_weight.unsqueeze(1))
                     target_q_distribution[final_mask] = proj_dist_final
-                    print(f"[C51] Projected final target_dist shape: {proj_dist_final.shape}")
 
             kl_divergence = - (target_q_distribution * log_q_distribution).sum(1)
-            print(f"[C51] KL-Divergence shape: {kl_divergence.shape}")
             
             if self.use_per:
                 errors = kl_divergence.detach().cpu().numpy()
@@ -166,10 +179,8 @@ class DQNAgent:
             else:
                 loss = kl_divergence.mean()
 
-        else:
-            print("[Mode] Standard DQN")
+        else: # Standard (non-distributional) DQN
             state_action_values = self.policy_net(state_batch).gather(1, action_batch)
-            print(f"[Standard] state_action_values shape: {state_action_values.shape}")
             next_state_values = torch.zeros(batch_size, device=self.device)
             with torch.no_grad():
                 if self.use_double:
@@ -178,8 +189,8 @@ class DQNAgent:
                 else:
                     next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0]
             
+            # Compute the expected Q values using n-step logic
             expected_state_action_values = (next_state_values * (gamma**n_steps)) + reward_batch
-            print(f"[Standard] expected_state_action_values shape: {expected_state_action_values.shape}")
 
             if self.use_per:
                 errors = torch.abs(state_action_values - expected_state_action_values.unsqueeze(1)).detach().cpu().numpy()
@@ -193,17 +204,26 @@ class DQNAgent:
                 criterion = nn.SmoothL1Loss()
                 loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
         
-        print(f"[Loss] Final loss value: {loss.item()}")
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
 
+        # Log the loss to W&B
+        import wandb
+        wandb.log({"loss": loss.item()})
+        return loss.item()
+
     def update_target_net(self, tau=0.005):
+        # For Atari, a hard update is sometimes used. Here we stick with soft updates.
+        # if self.is_atari and self.steps_done % 10000 == 0: # Hard update every C steps
+        #     self.target_net.load_state_dict(self.policy_net.state_dict())
+        #     return
+        
         target_net_state_dict = self.target_net.state_dict()
         policy_net_state_dict = self.policy_net.state_dict()
         for key in policy_net_state_dict:
-            target_net_state_dict[key] = policy_net_state_dict[key]*tau + policy_net_state_dict[key]*(1-tau)
+            target_net_state_dict[key] = policy_net_state_dict[key]*tau + target_net_state_dict[key]*(1-tau)
         self.target_net.load_state_dict(target_net_state_dict)
 
     def reset_noise(self):
