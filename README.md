@@ -155,6 +155,10 @@ python main.py --search --env_name CartPole-v1 --n_trials 50
   - Mnih, V., et al. (2013). *arXiv*.
 - **Rainbow: Combining improvements in deep reinforcement learning** (The paper that combines all the techniques below)
   - Hessel, M., et al. (2018). *AAAI*.
+- **Noisy Nets for Exploration** (Noisy Nets)
+  - Fortunato, M., et al. (2017). *arXiv*.
+- **A Distributional Perspective on Reinforcement Learning** (Distributional RL, C51)
+  - Bellemare, M. G., et al. (2017). *ICML*.
 - **Deep reinforcement learning with double q-learning** (Double DQN)
   - Van Hasselt, H., et al. (2016). *AAAI*.
 - **Dueling network architectures for deep reinforcement learning** (Dueling Networks)
