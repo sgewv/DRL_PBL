@@ -33,6 +33,106 @@ This framework implements the core components of Rainbow, allowing you to combin
 - **Noisy Nets (`--use_noisy`)**
   Provides a more sophisticated method for exploration by adding parametric noise directly to the network's weights, which can be learned and adapted during training.
 
+## Algorithm Details: Math-to-Code Mapping
+
+This section maps the core mathematical concepts of the implemented algorithms to their corresponding variables and code blocks within the project.
+
+### 1. Core RL & DQN Concepts
+
+These are the fundamental variables used in the Deep Q-Network algorithm, primarily within `agent.py`'s `optimize_model` method.
+
+| Symbol | Concept | Code Variable | File & Context |
+| :--- | :--- | :--- | :--- |
+| **s** | State | `state_batch` | `agent.py`: A batch of states from the replay buffer. |
+| **a** | Action | `action_batch` | `agent.py`: A batch of actions corresponding to `state_batch`. |
+| **r** | Reward | `reward_batch` | `agent.py`: A batch of rewards received after taking actions. |
+| **s'** | Next State | `next_state_batch` | `agent.py`: A batch of next states observed. |
+| **γ** | Discount Factor | `self.gamma` | `agent.py`: The `--gamma` argument. |
+| **Q(s, a; θ)** | Predicted Q-value | `state_action_values` | `agent.py`: Output of the `policy_net` for the chosen actions. |
+| **Q(s', a'; θ')** | Target Q-value | `next_state_values` | `agent.py`: Output of the `target_net`. |
+| **θ** | Policy Network Weights | `self.policy_net` | `agent.py`: The main network that is actively being trained. |
+| **θ'** | Target Network Weights | `self.target_net` | `agent.py`: A lagging copy of the policy network for stable targets. |
+
+#### DQN Loss Function
+
+- **Equation:** `L = E[(y - Q(s, a; θ))^2]` (typically using Smooth L1 Loss)
+- **Target (y):** `y = r + γ * max_a' Q(s', a'; θ')`
+
+| Math | Code | File & Context |
+| :--- | :--- | :--- |
+| `max_a' Q(s', a'; θ')` | `self.target_net(next_state_batch).max(1)[0]` | `agent.py`: Calculating the max Q-value from the target network. |
+| `y` | `expected_state_action_values` | `agent.py`: The computed target value for the loss function. |
+| `L` | `loss = criterion(...)` | `agent.py`: The final loss calculation using `nn.SmoothL1Loss`. |
+
+---
+
+### 2. Double DQN (`--use_double`)
+
+- **Equation:** `y = r + γ * Q(s', argmax_a' Q(s', a'; θ); θ')`
+- **Key Idea:** Use the **policy network (θ)** to select the best next action, but use the **target network (θ')** to evaluate the value of that action.
+
+| Math | Code | File & Context |
+| :--- | :--- | :--- |
+| `argmax_a' Q(s', a'; θ)` | `best_actions = self.policy_net(next_state_batch).argmax(1)` | `agent.py`: Selecting the best action using the `policy_net`. |
+| `Q(s', ..., θ')` | `self.target_net(next_state_batch).gather(1, best_actions)` | `agent.py`: Evaluating the chosen action's value using the `target_net`. |
+
+---
+
+### 3. Dueling Network (`--use_dueling`)
+
+- **Equation:** `Q(s, a) = V(s) + (A(s, a) - mean(A(s, a')))`
+- **Key Idea:** Decompose the Q-value into a state-value component and an action-advantage component.
+
+| Math | Code | File & Context |
+| :--- | :--- | :--- |
+| `V(s)` | `self.value_stream(features)` | `models.py`: The output of the value stream in `DuelingQNetwork`. |
+| `A(s, a)` | `self.advantage_stream(features)` | `models.py`: The output of the advantage stream. |
+| `mean(A(s, a'))` | `advantage.mean(dim=1, keepdim=True)` | `models.py`: Subtracting the mean advantage for identifiability. |
+
+---
+
+### 4. Prioritized Experience Replay (PER) (`--use_per`)
+
+- **Priority Equation:** `p_i = (|δ_i| + ε)^α`
+- **IS Weight Equation:** `w_i = (N * P(i))^(-β)`
+
+| Symbol | Concept | Code Variable / Logic | File & Context |
+| :--- | :--- | :--- | :--- |
+| **δ_i** | TD-Error | `errors` | `agent.py`: The difference between predicted and target Q-values. |
+| **p_i** | Priority | `priority = self._get_priority(error)` | `replay_buffer.py`: Calculated priority based on TD-error. |
+| **α** | Prioritization Exponent | `self.a` (hard-coded as `0.6`) | `replay_buffer.py`: Controls how much prioritization is used. |
+| **w_i** | IS Weight | `importance_sampling_weight` | `replay_buffer.py`: The correction weight for each sampled transition. |
+| **β** | IS Exponent | `self.beta` (starts at `0.4`) | `replay_buffer.py`: Controls the amount of correction (annealed to 1.0). |
+| `loss * w_i` | Weighted Loss | `loss = (loss.squeeze(1) * is_weights).mean()` | `agent.py`: Applying the IS weights to the loss calculation. |
+
+---
+
+### 5. N-Step Learning (`--n_steps`)
+
+- **Equation:** `y = (Σ_{k=0}^{n-1} γ^k * r_{t+k+1}) + γ^n * max_a' Q(s_{t+n}, a'; θ')`
+
+| Math | Code | File & Context |
+| :--- | :--- | :--- |
+| `Σ_{k=0}^{n-1} ...` | N-Step Return | `n_step_return = sum(...)` | `trainer.py`: The sum of discounted rewards over `n` steps. |
+| `s_{t+n}` | N-th Next State | `end_next_state` | `trainer.py`: The state observed after `n` steps. |
+| `y` | N-Step Target | `expected_state_action_values` | `agent.py`: The final target, combining the n-step return and the bootstrapped value of the n-th state. |
+
+---
+
+### 6. Distributional DQN (C51) (`--use_distributional`)
+
+- **Key Idea:** Model the Q-value as a probability distribution over a fixed set of supports (atoms).
+- **Projection Equation:** `Tz_j = r + γ * z_j`
+
+| Concept | Code Variable | File & Context |
+| :--- | :--- | :--- |
+| Atoms (Support) | `self.support` | `agent.py`: The fixed, discrete support points `z_j` of the distribution. |
+| Distribution `p(s,a)` | `log_q_distribution` | `agent.py`: The predicted probability distribution for each action. |
+| Projected Support `Tz_j` | `projected_support` | `agent.py`: The target distribution's support, projected from the next state's support. |
+| Target Distribution `m` | `target_q_distribution` | `agent.py`: The final target distribution after projecting and distributing probability mass. |
+| Loss (Cross-Entropy) | `loss = - (target_q_distribution * log_q_s_a).sum(1)` | `agent.py`: The cross-entropy loss between the predicted and target distributions. |
+
+
 ## Project Structure
 
 The project is organized into a modular structure to promote clarity and separation of concerns.
