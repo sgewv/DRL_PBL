@@ -36,4 +36,3 @@ wandb/
 *.sh
 
 # Data files (if not meant to be version controlled)
-ml-latest/

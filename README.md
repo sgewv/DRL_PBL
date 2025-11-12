@@ -77,14 +77,56 @@ pip install -r requirements.txt
 ### 2. Training (학습)
 Train an agent on a specified environment. All results are logged to W&B.
 
-**Example: Train on the custom `MovieRec-v1` environment with Dueling and Double DQN**
 ```bash
-python main.py --env_name MovieRec-v1 --use_dueling --use_double --n_steps 3
-```
+python main.py --env_name CartPole-v1
 
-**Example: Train on the standard `CartPole-v1` environment**
-```bash
-python main.py --env_name CartPole-v1 --num_episodes 500
+python main.py --env_name CartPole-v1 --use_double
+
+python main.py --env_name CartPole-v1 --use_dueling
+
+python main.py --env_name CartPole-v1 --use_per
+
+python main.py --env_name CartPole-v1 --use_noisy
+
+python main.py --env_name CartPole-v1 --use_distributional
+
+python main.py --env_name CartPole-v1 --n_steps 3
+
+python main.py --env_name CartPole-v1 --use_double --use_dueling
+
+python main.py --env_name CartPole-v1 --use_per --n_steps 3
+
+python main.py --env_name CartPole-v1 --use_double --use_dueling --use_per --use_distributional --n_steps 3
+
+python main.py --env_name CartPole-v1 --use_double --use_dueling --use_per --use_noisy --use_distributional --n_steps 3
+
+python main.py --env_name CartPole-v1 --lr 1e-5 --batch_size 256
+
+python main.py --env_name CartPole-v1 --gamma 0.995 --tau 0.01
+
+python main.py --env_name CartPole-v1 --eps_start 1.0 --eps_end 0.01 --eps_decay 2000
+
+python main.py --env_name MovieRec-v1 --num_episodes 5000 --use_double --use_dueling
+
+python main.py --env_name "ALE/Pong-v5" --num_episodes 20000 --use_per --n_steps 3
+
+python main.py --evaluate --env_name CartPole-v1 --load_model_path "path/to/model.pth"
+
+python main.py --evaluate --env_name CartPole-v1 --load_model_path "path/to/dueling_model.pth" --use_dueling
+
+python main.py --evaluate --env_name CartPole-v1 --load_model_path "path/to/dist_model.pth" --use_distributional
+
+python main.py --evaluate --env_name CartPole-v1 --load_model_path "path/to/model.pth" --eval_episodes 50
+
+python main.py --search --env_name CartPole-v1 --n_trials 100
+
+python main.py --search --env_name CartPole-v1 --n_trials 200 --search_mode all
+
+python main.py --search --env_name CartPole-v1 --n_trials 100 --num_episodes_per_trial 500
+
+python main.py --env_name CartPole-v1 --seed 123
+
+python main.py --env_name CartPole-v1 --wandb_disable
 ```
 
 ### 3. Evaluation (평가)
