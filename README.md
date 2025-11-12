@@ -78,6 +78,8 @@ pip install -r requirements.txt
 Train an agent on a specified environment. All results are logged to W&B.
 
 ```bash
+python main.py --env_name CartPole-v1 --search --search_mode all --n_trials 1 --num_episodes_per_trial 10
+
 python main.py --env_name CartPole-v1
 
 python main.py --env_name CartPole-v1 --use_double
