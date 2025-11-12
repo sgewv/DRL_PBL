@@ -190,7 +190,20 @@ python main.py --search --env_name CartPole-v1 --n_trials 50
 | | `--search_mode` | `base` | Hyperparameter set to search (`base` or `all`). |
 | **W&B Logging** | `--wandb_project` | `drl-pbl-lecture` | Name of the Weights & Biases project. |
 | | `--wandb_disable` | `False` | Disable Weights & Biases logging. |
+## Hard-coded Parameters
 
+These are important parameters that are defined directly in the source code and are not configurable via command-line arguments.
+
+| Parameter | File Location | Default Value | Description |
+|---|---|---|---|
+| Replay Buffer Capacity | `src/agent.py` | `100000` | The maximum number of transitions the replay buffer can store. |
+| PER: alpha | `src/replay_buffer.py` | `0.6` | Controls the prioritization level (0: uniform, 1: full priority). |
+| PER: beta | `src/replay_buffer.py` | `0.4` | Controls the importance-sampling correction (anneals to 1.0). |
+| Atari Epsilon Decay | `src/trainer.py` | `1000000` | A much longer epsilon decay schedule specifically for Atari environments. |
+| Model Save Condition | `src/trainer.py` | `episode_index > 100` | The minimum episode number before the best model can be saved. |
+| MLP Hidden Size | `src/models.py` | `128` | The number of neurons in the hidden layers of `QNetwork` and `DuelingQNetwork`. |
+| CNN FC Layer Size | `src/models.py` | `512` | The number of neurons in the fully-connected layer of `DQN_CNN`. |
+| Max Session Length | `src/custom_envs/movie_rec.py` | `20` | The maximum number of steps (recommendations) in one session for `MovieRec-v1`. |
 
 ## References
 - **Human-level control through deep reinforcement learning** (DQN)
