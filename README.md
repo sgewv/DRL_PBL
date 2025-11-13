@@ -132,6 +132,67 @@ These are the fundamental variables used in the Deep Q-Network algorithm, primar
 | Target Distribution `m` | `target_q_distribution` | `agent.py`: The final target distribution after projecting and distributing probability mass. |
 | Loss (Cross-Entropy) | `loss = - (target_q_distribution * log_q_s_a).sum(1)` | `agent.py`: The cross-entropy loss between the predicted and target distributions. |
 
+### 7. Other Hard-coded Parameters
+
+These are important parameters that are defined directly in the source code and are not configurable via command-line arguments.
+
+| Parameter | File Location | Default Value | Description |
+|---|---|---|---|
+| PER Epsilon (ε) | `src/replay_buffer.py` | `0.01` | A small value added to TD-errors in PER to ensure no transition has zero priority. |
+| PER Beta Increment | `src/replay_buffer.py` | `0.001` | The amount `beta` is increased by at each sampling step in PER. |
+| Gradient Clip Value | `src/agent.py` | `100` | The maximum value to which gradients are clipped during training to prevent explosions. |
+| Reward Avg. Window | `src/trainer.py` | `100` | The number of recent episodes used to calculate the moving average reward for logging and model saving. |
+| Atari Wrapper Params | `src/utils.py` | `screen_size=84`, `noop_max=30`, `frame_skip=1`, `stack_size=4` | Parameters for the `AtariPreprocessing` and `FrameStackObservation` wrappers, based on the DQN paper. |
+| Optimizer | `src/agent.py` | `AdamW` | The optimizer used for training the neural network. |
+| Optimizer `amsgrad` | `src/agent.py` | `True` | Whether to use the AMSGrad variant of the AdamW optimizer. |
+| MLP Hidden Size | `src/models.py` | `128` | The number of neurons in the hidden layers of `QNetwork` and `DuelingQNetwork`. |
+| CNN FC Layer Size | `src/models.py` | `512` | The number of neurons in the fully-connected layer of `DQN_CNN`. |
+| Custom Env. Reward Click | `src/custom_envs/movie_rec.py` | `+1.0` | Reward for a successful movie click in `MovieRec-v1`. |
+| Custom Env. Reward No Click | `src/custom_envs/movie_rec.py` | `-0.2` | Penalty for no movie click in `MovieRec-v1`. |
+| Custom Env. Reward Churn | `src/custom_envs/movie_rec.py` | `-10.0` | Penalty for user churn (leaving the session) in `MovieRec-v1`. |
+| Custom Env. Max Session Length | `src/custom_envs/movie_rec.py` | `20` | The maximum number of steps (recommendations) in one session for `MovieRec-v1`. |
+
+
+### 7. Other Hard-coded Parameters
+
+These are important parameters that are defined directly in the source code and are not configurable via command-line arguments.
+
+| Parameter | File Location | Default Value | Description |
+|---|---|---|---|
+| PER Epsilon (ε) | `src/replay_buffer.py` | `0.01` | A small value added to TD-errors in PER to ensure no transition has zero priority. |
+| PER Beta Increment | `src/replay_buffer.py` | `0.001` | The amount `beta` is increased by at each sampling step in PER. |
+| Gradient Clip Value | `src/agent.py` | `100` | The maximum value to which gradients are clipped during training to prevent explosions. |
+| Reward Avg. Window | `src/trainer.py` | `100` | The number of recent episodes used to calculate the moving average reward for logging and model saving. |
+| Atari Wrapper Params | `src/utils.py` | `screen_size=84`, `noop_max=30`, `frame_skip=1`, `stack_size=4` | Parameters for the `AtariPreprocessing` and `FrameStackObservation` wrappers, based on the DQN paper. |
+| Optimizer | `src/agent.py` | `AdamW` | The optimizer used for training the neural network. |
+| Optimizer `amsgrad` | `src/agent.py` | `True` | Whether to use the AMSGrad variant of the AdamW optimizer. |
+| MLP Hidden Size | `src/models.py` | `128` | The number of neurons in the hidden layers of `QNetwork` and `DuelingQNetwork`. |
+| CNN FC Layer Size | `src/models.py` | `512` | The number of neurons in the fully-connected layer of `DQN_CNN`. |
+| Custom Env. Reward Click | `src/custom_envs/movie_rec.py` | `+1.0` | Reward for a successful movie click in `MovieRec-v1`. |
+| Custom Env. Reward No Click | `src/custom_envs/movie_rec.py` | `-0.2` | Penalty for no movie click in `MovieRec-v1`. |
+| Custom Env. Reward Churn | `src/custom_envs/movie_rec.py` | `-10.0` | Penalty for user churn (leaving the session) in `MovieRec-v1`. |
+| Custom Env. Max Session Length | `src/custom_envs/movie_rec.py` | `20` | The maximum number of steps (recommendations) in one session for `MovieRec-v1`. |
+
+
+### 7. Other Hard-coded Parameters
+
+These are important parameters that are defined directly in the source code and are not configurable via command-line arguments.
+
+| Parameter | File Location | Default Value | Description |
+|---|---|---|---|
+| PER Epsilon (ε) | `src/replay_buffer.py` | `0.01` | A small value added to TD-errors in PER to ensure no transition has zero priority. |
+| PER Beta Increment | `src/replay_buffer.py` | `0.001` | The amount `beta` is increased by at each sampling step in PER. |
+| Gradient Clip Value | `src/agent.py` | `100` | The maximum value to which gradients are clipped during training to prevent explosions. |
+| Reward Avg. Window | `src/trainer.py` | `100` | The number of recent episodes used to calculate the moving average reward for logging and model saving. |
+| Atari Wrapper Params | `src/utils.py` | `screen_size=84`, `noop_max=30`, `frame_skip=1`, `stack_size=4` | Parameters for the `AtariPreprocessing` and `FrameStackObservation` wrappers, based on the DQN paper. |
+| Optimizer | `src/agent.py` | `AdamW` | The optimizer used for training the neural network. |
+| Optimizer `amsgrad` | `src/agent.py` | `True` | Whether to use the AMSGrad variant of the AdamW optimizer. |
+| MLP Hidden Size | `src/models.py` | `128` | The number of neurons in the hidden layers of `QNetwork` and `DuelingQNetwork`. |
+| CNN FC Layer Size | `src/models.py` | `512` | The number of neurons in the fully-connected layer of `DQN_CNN`. |
+| Custom Env. Reward Click | `src/custom_envs/movie_rec.py` | `+1.0` | Reward for a successful movie click in `MovieRec-v1`. |
+| Custom Env. Reward No Click | `src/custom_envs/movie_rec.py` | `-0.2` | Penalty for no movie click in `MovieRec-v1`. |
+| Custom Env. Reward Churn | `src/custom_envs/movie_rec.py` | `-10.0` | Penalty for user churn (leaving the session) in `MovieRec-v1`. |
+| Custom Env. Max Session Length | `src/custom_envs/movie_rec.py` | `20` | The maximum number of steps (recommendations) in one session for `MovieRec-v1`. |
 
 ## Project Structure
 
@@ -178,8 +239,6 @@ pip install -r requirements.txt
 Train an agent on a specified environment. All results are logged to W&B.
 
 ```bash
-python main.py --env_name CartPole-v1 --search --search_mode all --n_trials 1 --num_episodes_per_trial 10
-
 python main.py --env_name CartPole-v1
 
 python main.py --env_name CartPole-v1 --use_double
@@ -290,6 +349,7 @@ python main.py --search --env_name CartPole-v1 --n_trials 50
 | | `--search_mode` | `base` | Hyperparameter set to search (`base` or `all`). |
 | **W&B Logging** | `--wandb_project` | `drl-pbl-lecture` | Name of the Weights & Biases project. |
 | | `--wandb_disable` | `False` | Disable Weights & Biases logging. |
+
 ## Hard-coded Parameters
 
 These are important parameters that are defined directly in the source code and are not configurable via command-line arguments.
