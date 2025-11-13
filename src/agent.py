@@ -14,7 +14,7 @@ class DQNAgent:
     """
     ### 설계 의도 (Design Intent)
     
-    DQN 계열 알고리즘의 '두뇌' 역할. 에이전트의 핵심 책임인 행동 결정(action selection), 
+    에이전트의 핵심 책임인 행동 결정(action selection)을 하는 함수.
     경험 저장(experience storing), 그리고 학습(learning)을 모두 관리.
     
     - 모듈성(Modularity): 다양한 DQN 개선 기법(Double, Dueling, PER 등)을 플래그 형태로 
