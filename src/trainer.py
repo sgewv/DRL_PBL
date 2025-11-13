@@ -128,8 +128,7 @@ def run_training(args, trial=None):
                     while len(n_step_buffer) > 0:
                         n_step_return = sum([n_step_buffer[i][2] * (args.gamma**i) for i in range(len(n_step_buffer))])
                         start_state, start_action, _, _, _ = n_step_buffer.popleft()
-                        end_next_state, end_done = n_step_buffer[-1][3], n_step_buffer[-1][4] if len(n_step_buffer) > 0 else (next_state_tensor, done_tensor)
-                        agent.add_to_memory(start_state, start_action, n_step_return, end_next_state, end_done)
+                        agent.add_to_memory(start_state, start_action, n_step_return, next_state_tensor, done_tensor)
 
                 total_rewards.append(current_episode_reward)
                 # 최근 100개 에피소드의 평균 보상을 사용. 단일 에피소드 보상보다 훨씬 안정적인 성능 지표.

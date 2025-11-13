@@ -230,7 +230,7 @@ class DQNAgent:
                 # --- 3c. 타겟 분포 프로젝션 (C51 알고리즘) ---
                 # n-step 보상과 할인된 미래 가치 분포를 현재 시간으로 '투영(project)'.
                 # (수식: Tz_j = r_t + (γ^n)z_j)
-                projected_support = reward_batch.unsqueeze(1) + (self.gamma**self.n_steps) * self.support.unsqueeze(0) * (1 - done_batch.unsqueeze(1))
+                projected_support = reward_batch.unsqueeze(1) + (self.gamma**self.n_steps) * self.support.unsqueeze(0) * (1 - done_batch.unsqueeze(1).float())
                 projected_support = projected_support.clamp(self.v_min, self.v_max)
 
                 # --- 확률 질량 분배 (BUG FIX) ---
@@ -240,6 +240,13 @@ class DQNAgent:
                 # lower_mass의 가중치 (1-(b-l))은 b가 u에서 얼마나 떨어져 있는지를 나타냄 (l과 u의 간격은 1이므로).
                 m = torch.zeros_like(next_dist, device=self.device)
                 offset = torch.linspace(0, (self.batch_size - 1) * self.num_atoms, self.batch_size).long().unsqueeze(1).expand(self.batch_size, self.num_atoms).to(self.device)
+
+                # --- Definition of b, l, u ---
+                b = (projected_support - self.v_min) / self.delta_z
+                l = b.floor().long()
+                u = b.ceil().long()
+                l = torch.max(torch.zeros_like(l), l)
+                u = torch.min((self.num_atoms - 1) * torch.ones_like(u), u)
                 
                 lower_mass = next_dist * (1.0 - (b - l.float()))
                 upper_mass = next_dist * (b - l.float())
@@ -292,7 +299,9 @@ class DQNAgent:
             #   - PER은 중요한 샘플을 편향되게(biased) 많이 뽑으므로, 이 샘플들의 영향력을 그대로 반영하면 학습이 불안정해짐.
             #   - is_weights는 자주 뽑힌 샘플의 가중치를 낮추고 드물게 뽑힌 샘플의 가중치를 높여 편향을 보정.
             # (수식: Loss = E[w_i * δ_i^2], where w_i = (N * P(i))^(-β), δ_i는 TD-error)
-            loss = (loss.squeeze(1) * is_weights).mean()
+            if not self.use_distributional:
+                loss = loss.squeeze(1) # Squeeze only if it's not distributional (where it's already (batch_size,))
+            loss = (loss * is_weights).mean()
 
         # === 하위 목표 5: 모델 최적화 (Optimize Model) ===
         # 계산된 손실을 바탕으로 policy_net의 가중치를 업데이트 (역전파 및 경사 하강).
